@@ -17,6 +17,17 @@ connection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
                                  cursorclass=pymysql.cursors.DictCursor)
 
 
+def init_database():
+    query = 'create table if not exists views (' \
+            'article_id int ,' \
+            'view_name char(4) ,' \
+            'view text,' \
+            'language char(3)' \
+            'primary key(article_id, view_name, language));'
+    connection.cursor().execute(query)
+
+
+
 def get_item_id(connection, title):
     title = title.replace("'","''")
     query = "select * from wb_items_per_site where ips_site_page = '{}'".format(title)
@@ -169,3 +180,20 @@ def get_things():
                          'filter(strstarts(str(?d), "http://dbpedia.org/")).'
                          '}',initNs={'OWL':OWL,'rdf':RDF})
     return graph.query(query)
+
+
+def get_view(id, language, name):
+    nameQ = "view_name = '{}' ".format(name)
+    languageQ = "language= '{}' ".format(language)
+    query = "select * from views where article_id = {} ".format(id)
+    if name is not None:
+        query += nameQ
+    if language is not None:
+        query += languageQ
+    cursor = connection.cursor()
+    return cursor.fetchall()
+
+def insert_view(id, name, language, view):
+    query = "insert into views (article_id, view_name, language, view) values(%d, %s, %s, %s)"
+    connection.cursor().execute(query,(id, name, language, view))
+    connection.commit()

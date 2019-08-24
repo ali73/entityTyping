@@ -14,3 +14,5 @@ PARSE_DBPEDIA = False
 PARSE_WIKI_ARTICLES = False
 FARS_BASE = 'http://localhost/farsbase'
 WORD_VEC_SIZE = 30
+
+languages = ['en']

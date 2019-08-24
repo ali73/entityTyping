@@ -28,10 +28,10 @@ connection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
                                  password=config.DB_PASS, db=config.DB_NAME,
                                  charset='utf8mb4',
                                  cursorclass=pymysql.cursors.DictCursor)
-
-NAME = []
-CTXT = []
-DESC = []
+#
+# NAME = []
+# CTXT = []
+# DESC = []
 
 
 
@@ -122,7 +122,7 @@ def parse_page_element(element: et.Element):
         return
     store_page_in_mongo(page)
 
-def read_pages():
+def read_pages(language = 'en'):
     with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-20190801-pages-articles-multistream.xml.bz2')) as file:
         tree = et.iterparse(file,events=['start'])
         file = open('history.txt')
@@ -177,6 +177,7 @@ def store_page_in_mongo(page: Page):
 
 def compute_NAME_view(language='en'):
     names = list()
+    # TODO: get names list
     reg = re.compile('(\[\w\])|(\(\w\))')
     file = open(os.path.join(Path.files_path,'temp.txt'),'w')
     for name in names:
@@ -191,7 +192,8 @@ def compute_NAME_view(language='en'):
                 print('No embedding in fastText for word {}'.format(word))
                 model = fasttext.train_unsupervised(os.path.join(Path.files_path,'temp.txt'), model='cbow')
                 embedding += model[word]
-        NAME.append(embedding/embedding.size)
+        # NAME.append(embedding)
+        insert_view(get_item_id(connection, name), 'NAME', language, embedding)
         file.truncate()
 
 
@@ -216,8 +218,9 @@ def compute_CTXT_view(language='en'):
         print(thing)
         context = get_CTXT('text')
         if context is not None:
-            CTXT.append(context)
-
+            # CTXT.append(context)
+            # TODO: get article title from thing
+            insert_view(get_item_id(connection, 'name'),'CTXT', language, context)
     pass
 
 
@@ -228,6 +231,7 @@ def compute_DESC_view(language= 'en'):
         description = np.zeros(config.WORD_VEC_SIZE)
         print(thing)
         file.write(thing)
+        # TODO: extract keywords from first paragraph of text
         keywords = extract_keywords('text',language)
         for word in keywords:
             try:
@@ -236,7 +240,8 @@ def compute_DESC_view(language= 'en'):
                 model = fasttext.train_unsupervised(os.path.join(Path.files_path, 'temp.txt'), model='cbow')
                 description += model[word]
         file.truncate()
-        DESC.append(description / description.size)
+        # DESC.append(description / description.size)
+        insert_view(get_item_id(connection,thing),'DESC', language, description/description.size)
 
 
 def create_temp_dir(language = 'en'):
@@ -244,14 +249,14 @@ def create_temp_dir(language = 'en'):
 
 
 def main():
-    # parse_datasets()
-    create_temp_dir()
-    if config.PARSE_WIKI_ARTICLES:
-        read_pages()
-    compute_CTXT_view()
-    init_fastText()
-    compute_NAME_view()
-    compute_DESC_view()
+    for lan in config.languages:
+        create_temp_dir(lan)
+        if config.PARSE_WIKI_ARTICLES:
+            read_pages(lan)
+        compute_CTXT_view(lan)
+        init_fastText(lan)
+        compute_NAME_view(lan)
+        compute_DESC_view(lan)
 
 
 
