@@ -290,5 +290,7 @@ dmypy.json
 *.txt
 *.wpd
 *.wps
-
+wang2vec
+Data
+conf_local.py
 # End of https://www.gitignore.io/api/text,linux,python,pycharm,pycharm+all
