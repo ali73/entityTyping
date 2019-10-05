@@ -10,13 +10,13 @@ import io
 import bz2
 from fasttext import FastText
 import fasttext
-from database import Page, Revision, get_things
+from database import Page, Revision, get_things, get_entities_with_type, get_types_size, get_types
 import subprocess
 from keyword_extraction import extract_keywords
-
+from config import WORD_VEC_SIZE, HIDDEN_LAYER_SIZE
 
 redirects = {}
-pages = []
+# pages = []
 client = MongoClient()
 database = client['MVET']
 articles = database['title_id.articles']
@@ -53,7 +53,7 @@ def extract_namespace(tag):
     nsReg = re.compile('\{.*\}')
     return nsReg.search(tag).group(0)
 
-
+'''
 def context_view():
     file = open(os.path.join(Path.files_path, 'output.txt'), 'w')
     for page in pages:
@@ -61,7 +61,7 @@ def context_view():
         file.write(page.revision.text)
         file.write('\n')
     file.close()
-
+'''
 
 def init_fastText(lan='en'):
     """
@@ -116,6 +116,11 @@ def get_NAME(title, dimension, lan='en'):
 #
 
 def parse_page_element(element: et.Element):
+    '''
+    Get a xml element of wikipedia dump and store it in mongo db
+    :param element:
+    :return:
+    '''
     try:
         page = Page(element)
     except AttributeError:
@@ -123,6 +128,11 @@ def parse_page_element(element: et.Element):
     store_page_in_mongo(page)
 
 def read_pages(language = 'en'):
+    '''
+    Read wikipedia pages from dumps, parse them and store data in database
+    :param language:
+    :return:
+    '''
     with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-20190801-pages-articles-multistream.xml.bz2')) as file:
         tree = et.iterparse(file,events=['start'])
         file = open('history.txt')
@@ -132,7 +142,7 @@ def read_pages(language = 'en'):
             count = hist['articles']
         except KeyError:
             count = 0
-        for _, element in tree:
+        for _, element in tree[count:]:
             if element.tag == '{{{}}}{}'.format(namespace,'page'):
                 count += 1
                 print(element.tag)
@@ -144,7 +154,7 @@ def read_pages(language = 'en'):
                     hist['articles'] = count
                     file.write(json.dumps(hist))
                     file.close()
-        context_view()
+        # context_view()
         print(count)
 
 
@@ -176,6 +186,11 @@ def store_page_in_mongo(page: Page):
 
 
 def compute_NAME_view(language='en'):
+    '''
+    Compute NAME view for all articles and store them in  database
+    :param language:
+    :return:
+    '''
     names = list()
     # TODO: get names list
     reg = re.compile('(\[\w\])|(\(\w\))')
@@ -213,6 +228,11 @@ def get_CTXT(text):
 
 
 def compute_CTXT_view(language='en'):
+    """
+    Compute CTXT view of each article and store in database
+    :param language:
+    :return:
+    """
     things = get_things()
     for thing in things:
         print(thing)
@@ -224,13 +244,21 @@ def compute_CTXT_view(language='en'):
     pass
 
 
-def compute_DESC_view(language= 'en'):
+def compute_DESC_view(language='en'):
+
+    """
+    Compute DESC view for all articles and store in database
+    :param language:
+    :return:
+    """
+
+
     things = get_things()
-    file = open(os.path.join(Path.files_path,'temp.txt'),'w')
+    # file = open(os.path.join(Path.files_path,'temp.txt'),'w')
     for thing in things:
         description = np.zeros(config.WORD_VEC_SIZE)
         print(thing)
-        file.write(thing)
+        # file.write(thing)
         # TODO: extract keywords from first paragraph of text
         keywords = extract_keywords('text',language)
         for word in keywords:
@@ -239,24 +267,54 @@ def compute_DESC_view(language= 'en'):
             except  KeyError:
                 model = fasttext.train_unsupervised(os.path.join(Path.files_path, 'temp.txt'), model='cbow')
                 description += model[word]
-        file.truncate()
+        # file.truncate()
         # DESC.append(description / description.size)
         insert_view(get_item_id(connection,thing),'DESC', language, description/description.size)
 
 
 def create_temp_dir(language = 'en'):
+    """
+    Create a temporary directory to keep temporary files.
+    :param language:
+    :return:
+    """
     os.mkdir(os.path.join(Path.files_path,'temp',language))
 
+
+def train():
+    entities = get_entities_with_type()
+    for thing in entities:
+        # TODO: give article title to get id
+        p = np.zeros(config.WORD_VEC_SIZE)
+        views = get_view(get_item_id(thing))
+        for view in views:
+            p += view
+        p /= len(views)
+
+
+def get_views(name):
+    """
+    Get an article name and return all views of it in all languages
+    :param name:
+    :return:list of article
+    """
 
 def main():
     for lan in config.languages:
         create_temp_dir(lan)
         if config.PARSE_WIKI_ARTICLES:
             read_pages(lan)
-        compute_CTXT_view(lan)
         init_fastText(lan)
+        compute_CTXT_view(lan)
         compute_NAME_view(lan)
         compute_DESC_view(lan)
 
 
-
+# main()
+from keras.models import Sequential
+from keras.layers import Dense, LeakyReLU
+output_size = get_types_size()
+model = Sequential()
+model.add(LeakyReLU(HIDDEN_LAYER_SIZE, input_shape=(WORD_VEC_SIZE, ),alpha=0.2  ))
+model.add(Dense(output_size, input_shape=(HIDDEN_LAYER_SIZE,)))
+train()

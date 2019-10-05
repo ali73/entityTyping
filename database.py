@@ -181,10 +181,32 @@ def get_things():
                          '}',initNs={'OWL':OWL,'rdf':RDF})
     return graph.query(query)
 
+def get_types ():
+    query = 'select distinct ?t' \
+            'where {' \
+            '?p rdf:instanceOf ?t' \
+            'filter not exists{' \
+            '?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>' \
+            '}' \
+            '}'
+    graph = Graph()
+    graph.load(config.FARS_BASE)
+    query = prepareQuery(query, initNs={'owl':OWL, 'rdf':RDF})
+    return graph.query(query)
+
+def get_types_size():
+    query = 'select count(distinct ?t)' \
+            'where {' \
+            '?p rdf:instanceOf ?t' \
+            '}'
+    graph = Graph()
+    graph.load(config.FARS_BASE)
+    query = prepareQuery(query, initNs={"owl":OWL, 'rdf':RDF})
+    return graph.query()
 
 def get_view(id, language, name):
-    nameQ = "view_name = '{}' ".format(name)
-    languageQ = "language= '{}' ".format(language)
+    nameQ = " and view_name = '{}' ".format(name)
+    languageQ = " and language= '{}' ".format(language)
     query = "select * from views where article_id = {} ".format(id)
     if name is not None:
         query += nameQ
@@ -197,3 +219,15 @@ def insert_view(id, name, language, view):
     query = "insert into views (article_id, view_name, language, view) values(%d, %s, %s, %s)"
     connection.cursor().execute(query,(id, name, language, view))
     connection.commit()
+
+
+def get_entities_with_type():
+    query = 'select ?p ' \
+            'where {' \
+            '?p rdf:instaceOf ?t' \
+            'filter not exists {?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>}' \
+            '}'
+    graph = Graph()
+    graph.parse(config.FARS_BASE)
+    query = prepareQuery(query, initNs={'owl':OWL, 'rdf':RDF})
+    return graph.query(query)

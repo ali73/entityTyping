@@ -4,7 +4,7 @@ DELETE {
 INSERT {
     ?p rdf:instanceOf ?o
 }
-using named <http:localhost:8890/farsbase>
+using named <fkg.iust.ac.ir>
 using named <DBpedia>
 where {
               ?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>.

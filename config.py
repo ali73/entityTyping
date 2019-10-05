@@ -11,8 +11,9 @@ INSERT_TITLES = False
 UPDATE_ID = False
 PARSE = False
 PARSE_DBPEDIA = False
-PARSE_WIKI_ARTICLES = False
-FARS_BASE = 'http://localhost/farsbase'
-WORD_VEC_SIZE = 30
-
+PARSE_WIKI_ARTICLES = True
+FARS_BASE = 'fkg.iust.ac.ir'
+WORD_VEC_SIZE = 300
+d = 30
+HIDDEN_LAYER_SIZE = 300
 languages = ['en']
