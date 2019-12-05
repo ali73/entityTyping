@@ -1,8 +1,5 @@
-import xml.etree.ElementTree as ET
 import os
-import csv
-import  numpy as np
-from wikipedia_page_reader import read_pages, main
+from wikipedia_page_reader import main
 
 files_path = os.path.abspath('Data/')
 

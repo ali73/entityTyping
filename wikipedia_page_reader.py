@@ -69,6 +69,7 @@ def init_fastText(lan='en'):
     :param lan:Will specify the language to load word embedding for.
     :return: number and dimension of word embedding vectors.
     """
+    print('initializing fastText for {}'.format(lan))
     if lan == 'en':
         fname = os.path.join(Path.files_path,'wiki-news-300d-1M.vec')
     fin = io.open(fname, 'r', encoding='utf-8', newline='\n', errors='ignore')
@@ -77,7 +78,8 @@ def init_fastText(lan='en'):
     fastText = {}
     for line in fin:
         tokens = line.rstrip().split(' ')
-        fastText[tokens[0]] = map(float, tokens[1:])
+        # fastText[tokens[0]] = map(float, tokens[1:])
+        insert_fasttext_vector(tokens[0] , ' '.join(tokens[1:]))
     return n
 
 
@@ -123,8 +125,8 @@ def parse_page_element(element: et.Element):
     '''
     try:
         page = Page(element)
-    except AttributeError:
-        return
+    except AttributeError as e:
+        print(e)
     store_page_in_mongo(page)
 
 def read_pages(language = 'en'):
@@ -133,29 +135,15 @@ def read_pages(language = 'en'):
     :param language:
     :return:
     '''
-    with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-20190801-pages-articles-multistream.xml.bz2')) as file:
-        tree = et.iterparse(file,events=['start'])
-        file = open('history.txt')
-        hist = json.loads(file.read())
-        file.close()
-        try:
-            count = hist['articles']
-        except KeyError:
-            count = 0
-        for _, element in tree[count:]:
+    print('Start parsing wikipedia articles')
+    with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-20190801-pages-articles-multistream.xml.bz2')) as wikifile:
+        articles = et.iterparse(wikifile,events=['start'])
+        for _, element in articles:
             if element.tag == '{{{}}}{}'.format(namespace,'page'):
-                count += 1
-                print(element.tag)
-                try:
-                    parse_page_element(element)
-                except AttributeError:
-                    file = open('history.txt')
-                    hist = json.loads(file.read())
-                    hist['articles'] = count
-                    file.write(json.dumps(hist))
-                    file.close()
+                parse_page_element(element)
         # context_view()
-        print(count)
+    print('End parsing wikipedia articles')
+
 
 
 
@@ -191,11 +179,16 @@ def compute_NAME_view(language='en'):
     :param language:
     :return:
     '''
+    print('creating Name views')
     names = list()
     # TODO: get names list
     reg = re.compile('(\[\w\])|(\(\w\))')
     file = open(os.path.join(Path.files_path,'temp.txt'),'w')
-    for name in names:
+    things = get_things()
+
+    for thing in things:
+        entityId = thing[1].split('/')[-1][1:]
+        name = get_article_title(entityId)
         embedding = np.zeros(embedding_size)
         file.write(name)
         name = re.sub(reg,'',name)
@@ -203,12 +196,11 @@ def compute_NAME_view(language='en'):
             try:
                 embedding += fastText[word]
             except KeyError:
-                #               TODO: compute fasttext
                 print('No embedding in fastText for word {}'.format(word))
                 model = fasttext.train_unsupervised(os.path.join(Path.files_path,'temp.txt'), model='cbow')
                 embedding += model[word]
         # NAME.append(embedding)
-        insert_view(get_item_id(connection, name), 'NAME', language, embedding)
+        insert_view(get_item_id(sqlConnection, name), 'NAME', language, embedding)
         file.truncate()
 
 
@@ -219,10 +211,11 @@ def get_CTXT(text):
     presult = subprocess.call([os.path.join(Path.root_path,'wang2vec','word2vec'),'-train',os.path.join(Path.files_path,'temp.txt'),
                     '-output',os.path.join(Path.files_path,'temp_output.txt'), '-type 0', '-size', str(config.WORD_VEC_SIZE),
                      '-window 5 -negative 10 -nce 0 -hs 0 -sample 1e-4 -threads 1 -binary 1 -iter 5 -cap 0'])
-    if presult == 1:
+    if presult == 0:
         file = open(os.path.join(Path.files_path,'temp_output.txt'),'r')
         result = file.read()
         file.close()
+        return result
     else:
         return None
 
@@ -233,15 +226,20 @@ def compute_CTXT_view(language='en'):
     :param language:
     :return:
     """
+    print('creating Context views')
     things = get_things()
     for thing in things:
-        print(thing)
-        context = get_CTXT('text')
+        # print(thing)
+        entityId = thing[1].split('/')[-1][1:]
+        text = get_articleText(entityId)
+        if text is None:
+            print('text is null')
+            continue
+        context = get_CTXT(text)
         if context is not None:
             # CTXT.append(context)
             # TODO: get article title from thing
-            insert_view(get_item_id(connection, 'name'),'CTXT', language, context)
-    pass
+            insert_view(int(get_item_id(sqlConnection, 'name')), 'CTXT', language, context)
 
 
 def compute_DESC_view(language='en'):
@@ -252,12 +250,12 @@ def compute_DESC_view(language='en'):
     :return:
     """
 
-
+    print('creating Description views')
     things = get_things()
     # file = open(os.path.join(Path.files_path,'temp.txt'),'w')
     for thing in things:
         description = np.zeros(config.WORD_VEC_SIZE)
-        print(thing)
+        # print(thing)
         # file.write(thing)
         # TODO: extract keywords from first paragraph of text
         keywords = extract_keywords('text',language)
@@ -269,7 +267,7 @@ def compute_DESC_view(language='en'):
                 description += model[word]
         # file.truncate()
         # DESC.append(description / description.size)
-        insert_view(get_item_id(connection,thing),'DESC', language, description/description.size)
+        insert_view(get_item_id(sqlConnection, thing), 'DESC', language, description / description.size)
 
 
 def create_temp_dir(language = 'en'):
@@ -278,7 +276,9 @@ def create_temp_dir(language = 'en'):
     :param language:
     :return:
     """
-    os.mkdir(os.path.join(Path.files_path,'temp',language))
+    if not os.path.exists(os.path.join(Path.files_path,'temp',language)):
+        print("Temporary direcotries created")
+        os.makedirs(os.path.join(Path.files_path,'temp',language))
 
 
 def train():
@@ -304,17 +304,33 @@ def main():
         create_temp_dir(lan)
         if config.PARSE_WIKI_ARTICLES:
             read_pages(lan)
-        init_fastText(lan)
+        init_database()
+        if config.PARSE_FASTTEXT:
+            init_fastText(lan)
         compute_CTXT_view(lan)
         compute_NAME_view(lan)
         compute_DESC_view(lan)
 
 
 # main()
-from keras.models import Sequential
-from keras.layers import Dense, LeakyReLU
-output_size = get_types_size()
-model = Sequential()
-model.add(LeakyReLU(HIDDEN_LAYER_SIZE, input_shape=(WORD_VEC_SIZE, ),alpha=0.2  ))
-model.add(Dense(output_size, input_shape=(HIDDEN_LAYER_SIZE,)))
-train()
+# from keras.models import Sequential
+# from keras.layers import Dense, LeakyReLU
+# output_size = get_types_size()
+# model = Sequential()
+# model.add(LeakyReLU(HIDDEN_LAYER_SIZE, input_shape=(WORD_VEC_SIZE, ),alpha=0.2  ))
+# model.add(Dense(output_size, input_shape=(HIDDEN_LAYER_SIZE,)))
+# train()
+
+# from SPARQLWrapper import SPARQLWrapper, JSON
+# wrapper = SPARQLWrapper('http://localhost:8890/sparql')
+# wrapper.setQuery('select count(*) from <http://localhost:8890/dbpedia> where {?p ?d ?s} limit 20')
+# wrapper.setReturnFormat(JSON)
+# results = wrapper.query().convert()
+# for result in results["results"]["bindings"]:
+#     print (result["p"]['value'], result["d"]['value'])
+# from rdflib import G/raph
+# graph = Graph()
+# graph.parse(os.path.join(config.Path.root_path, 'Data', 'dbpedia_2016-10.nt'),format='nt')
+# qres = graph.query("select * from <http://localhost:8890/dbpedia> where {?p ?d ?s} limit 20")
+# for p,d,s in qres:
+#     print('{} {} {}'.format(p, d, s))
