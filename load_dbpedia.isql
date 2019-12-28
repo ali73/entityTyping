@@ -1,0 +1,2 @@
+ld_dir('/usr/local/virtuoso-opensource/var/lib/virtuoso/db/dumps/dbpedia/ttls', '*.ttl', 'http://entity.typing/dbpedia');
+rdf_loader_run();

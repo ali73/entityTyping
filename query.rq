@@ -5,13 +5,13 @@ DELETE {
 INSERT {
     ?p rdf:instanceOf ?o
 }
-using  <http://localhost:8890/farsbase>
-using named <http://localhost:8890/dbpedia>
+using  <http://entity.typing/farsbase>
+using named <http://entity.typing/dbpedia>
 where {
               ?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>.
               ?p owl:sameAs ?d.
               filter(strstarts(str(?d), "http://dbpedia.org/")).
-        {GRAPH <http://localhost:8890/dbpedia>
+        {GRAPH <http://entity.typing/dbpedia>
            {
                ?d rdf:type ?o
            }

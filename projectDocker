@@ -1,0 +1,3 @@
+FROM alpine
+RUN apt install -y mongo mysql
+CMD [ "python3.5" , "views.py"]

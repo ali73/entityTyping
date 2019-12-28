@@ -1,0 +1,2 @@
+ld_dir('/usr/local/virtuoso-opensource/var/lib/virtuoso/db/dumps/farsbase/ttls', '*.ttl', 'http://entity.typing/farsbase');
+rdf_loader_run();
