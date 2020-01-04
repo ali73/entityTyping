@@ -11,4 +11,12 @@ services:
     build:
       context: ./
       dockerfile: projectDocker
+  views:
+    image: mysql/mysql-server
+    build:
+      context: .
 
+  articles:
+    image: mongo
+    build:
+      context: .
