@@ -1,12 +1,14 @@
-version: '1'
+version: "3"
 services:
   virtuoso:
     build:
       dockerfile: virtuosoDocker
-      ports:
-        - "8890:8890"
-        - "1111:1111"
-
-  entityTypeing:
+      context: ./
+    ports:
+      - "8890:8890"
+      - "1111:1111"
+  entitytypeing:
     build:
+      context: ./
       dockerfile: projectDocker
+
