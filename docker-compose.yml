@@ -5,7 +5,7 @@ services:
       - "8890:8890"
       - "1111:1111"
   entitytypeing:
-
+    build: ./
   views:
     image: mysql/mysql-server
   articles:
