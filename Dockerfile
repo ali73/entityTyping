@@ -1,2 +1,2 @@
 FROM python
-CMD [ "python3.5" , "views.py"]
+#	CMD [ "python3.5" , "views.py"]
