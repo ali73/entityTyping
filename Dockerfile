@@ -1,3 +1,2 @@
-FROM alpine
-RUN apk add  mongo mysql
+FROM python
 CMD [ "python3.5" , "views.py"]
