@@ -1,22 +1,12 @@
 version: "3"
 services:
   virtuoso:
-    build:
-      dockerfile: virtuosoDocker
-      context: ./
     ports:
       - "8890:8890"
       - "1111:1111"
   entitytypeing:
-    build:
-      context: ./
-      dockerfile: projectDocker
+
   views:
     image: mysql/mysql-server
-    build:
-      context: .
-
   articles:
     image: mongo
-    build:
-      context: .
