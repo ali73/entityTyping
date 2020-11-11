@@ -16,12 +16,14 @@ import  logging
 mongoClient = MongoClient(connect=False)
 namespace = 'http://www.mediawiki.org/xml/export-0.10/'
 sqlConnection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
-                                password=config.DB_PASS, db=config.DB_NAME,
+                                password=config.DB_PASS,
                                 charset='utf8mb4',
                                 cursorclass=pymysql.cursors.DictCursor)
 
 
 def init_database():
+    # sqlConnection.cursor().execute('create database {}'.format(config.DB_NAME))
+    sqlConnection.select_db(config.DB_NAME)
     init_views()
     init_fasttext_datbase()
 
@@ -68,7 +70,8 @@ class Revision:
         for template in parsed.templates:
             template.string = ''
         for section in parsed.sections:
-            section = section.title + '\n' + section.contents
+            if section.title is not None:
+                section = section.title + '\n' + section.contents
         for table in parsed.tables:
             table = ''
         for list in parsed.lists():

@@ -10,9 +10,10 @@ import io
 import bz2
 from fasttext import FastText
 import fasttext
-from database import Page, Revision, get_things, get_entities_with_type, get_types_size, get_types
+from database import Page, Revision, get_things, get_entities_with_type, get_types_size, get_types, sqlConnection
 import subprocess
 from keyword_extraction import extract_keywords
+import argparse
 from config import WORD_VEC_SIZE, HIDDEN_LAYER_SIZE
 
 redirects = {}
@@ -24,11 +25,7 @@ title_ids = {}
 titles = []
 fastText = {}
 embedding_size = 30
-connection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
-                                 password=config.DB_PASS, db=config.DB_NAME,
-                                 charset='utf8mb4',
-                                 cursorclass=pymysql.cursors.DictCursor)
-#
+connection = sqlConnection
 # NAME = []
 # CTXT = []
 # DESC = []
@@ -129,14 +126,14 @@ def parse_page_element(element: et.Element):
         print(e)
     store_page_in_mongo(page)
 
-def read_pages(language = 'en'):
+def read_pages(language='en'):
     '''
     Read wikipedia pages from dumps, parse them and store data in database
-    :param language:
+    :param language code default being English(en)
     :return:
     '''
     print('Start parsing wikipedia articles')
-    with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-20190801-pages-articles-multistream.xml.bz2')) as wikifile:
+    with bz2.BZ2File(os.path.join(Path.files_path,'enwiki-latest-pages-articles-multistream1.xml-p1p30303.bz2')) as wikifile:
         articles = et.iterparse(wikifile,events=['start'])
         for _, element in articles:
             if element.tag == '{{{}}}{}'.format(namespace,'page'):
@@ -278,6 +275,7 @@ def create_temp_dir(language = 'en'):
     """
     if not os.path.exists(os.path.join(Path.files_path,'temp',language)):
         print("Temporary direcotries created")
+        print(os.curdir)
         os.makedirs(os.path.join(Path.files_path,'temp',language))
 
 
@@ -302,9 +300,9 @@ def get_views(name):
 def main():
     for lan in config.languages:
         create_temp_dir(lan)
+        init_database()
         if config.PARSE_WIKI_ARTICLES:
             read_pages(lan)
-        init_database()
         if config.PARSE_FASTTEXT:
             init_fastText(lan)
         compute_CTXT_view(lan)
@@ -312,7 +310,20 @@ def main():
         compute_DESC_view(lan)
 
 
-# main()
+if __name__ == "__main__":
+    print('main')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--parse_wiki',
+                        help='If provided it will parse wikipedia pages.')
+    parser.add_argument('--parse_fasttext',
+                        help='If true it will parse fast text.')
+    args = parser.parse_args()
+    if args.parse_wiki:
+        read_pages()
+    if args.parse_fasttext:
+        init_fastText()
+    else:
+        main()
 # from keras.models import Sequential
 # from keras.layers import Dense, LeakyReLU
 # output_size = get_types_size()

@@ -4,14 +4,11 @@ import pymysql
 import config
 import codecs
 import os
+from database import sqlConnection
 from config import Path
 
 
-connection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
-                             password=config.DB_PASS, db=config.DB_NAME,
-                             charset='utf8mb4',
-                             cursorclass=pymysql.cursors.DictCursor)
-
+connection = sqlConnection
 
 class BadGrammarException(Exception):
     pass

@@ -1,12 +1,8 @@
-DELETE {
-    ?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>
-}
-
 INSERT {
-    ?p rdf:instanceOf ?o
+    ?p rdf:DBPediaInstance ?o
 }
-using  <http://entity.typing/farsbase>
-using named <http://entity.typing/dbpedia>
+using  <http://fk.iust.ac.ir>
+using named <http://dbpedia.org>
 where {
               ?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>.
               ?p owl:sameAs ?d.

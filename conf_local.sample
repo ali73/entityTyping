@@ -1,0 +1,5 @@
+
+DB_USER='mysql database user'
+DB_HOST='mysql database address'
+DB_PASS='mysqldatabasepassword'
+DB_NAME='databaseName'
