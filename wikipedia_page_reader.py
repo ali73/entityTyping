@@ -23,7 +23,6 @@ database = client['MVET']
 articles = database['title_id.articles']
 title_ids = {}
 titles = []
-fastText = {}
 embedding_size = 30
 connection = sqlConnection
 # NAME = []
@@ -63,6 +62,8 @@ def context_view():
 def init_fastText(lan='en'):
     """
     Load pre-trained fastText word vectors into {fastText} with word as key and vector as value.
+    !!!warning!!!
+        need to download
     :param lan:Will specify the language to load word embedding for.
     :return: number and dimension of word embedding vectors.
     """
@@ -72,10 +73,8 @@ def init_fastText(lan='en'):
     fin = io.open(fname, 'r', encoding='utf-8', newline='\n', errors='ignore')
     # n is
     n, embedding_size = map(int, fin.readline().split())
-    fastText = {}
     for line in fin:
         tokens = line.rstrip().split(' ')
-        # fastText[tokens[0]] = map(float, tokens[1:])
         insert_fasttext_vector(tokens[0] , ' '.join(tokens[1:]))
     return n
 
@@ -93,20 +92,17 @@ def get_NAME(title, dimension, lan='en'):
     :return:
     """
 
-    if fastText == {}:
-        _, dimension = init_fastText(lan)
-    words = title.split(' ')
-    size = len(words)
+    words_in_title = title.split(' ')
+    size = len(words_in_title)
     vector = np.zeros(dimension)
     try:
-        for title in words:
-            if title[0] == '(' and title[-1] == ')':
+        for word in words_in_title:
+            if word[0] == '(' and word[-1] == ')':
                 size -= 1
                 continue
-            vector += fastText[title]
+            vector += get_fasttext_vector(word)
     except KeyError:
         pass
-        #TODO: Compute word embedding for word and add the vector to {vector}
     return vector / size
 
 
@@ -117,6 +113,9 @@ def get_NAME(title, dimension, lan='en'):
 def parse_page_element(element: et.Element):
     '''
     Get a xml element of wikipedia dump and store it in mongo db
+    !!!important!!!
+        this function needs wb_items_per_site database from wikipedia dumps
+
     :param element:
     :return:
     '''
@@ -128,7 +127,7 @@ def parse_page_element(element: et.Element):
 
 def read_pages(language='en'):
     '''
-    Read wikipedia pages from dumps, parse them and store data in database
+    Read wikipedia pages from xml dumps, parse them and store data in mongo database
     :param language code default being English(en)
     :return:
     '''
@@ -178,7 +177,6 @@ def compute_NAME_view(language='en'):
     '''
     print('creating Name views')
     names = list()
-    # TODO: get names list
     reg = re.compile('(\[\w\])|(\(\w\))')
     file = open(os.path.join(Path.files_path,'temp.txt'),'w')
     things = get_things()
@@ -191,7 +189,7 @@ def compute_NAME_view(language='en'):
         name = re.sub(reg,'',name)
         for word in name.split(' '):
             try:
-                embedding += fastText[word]
+                embedding += get_fasttext_vector(word)
             except KeyError:
                 print('No embedding in fastText for word {}'.format(word))
                 model = fasttext.train_unsupervised(os.path.join(Path.files_path,'temp.txt'), model='cbow')
@@ -254,7 +252,7 @@ def compute_DESC_view(language='en'):
         description = np.zeros(config.WORD_VEC_SIZE)
         # print(thing)
         # file.write(thing)
-        # TODO: extract keywords from first paragraph of text
+        # TODO: extract first paragraph of text
         keywords = extract_keywords('text',language)
         for word in keywords:
             try:
@@ -267,7 +265,7 @@ def compute_DESC_view(language='en'):
         insert_view(get_item_id(sqlConnection, thing), 'DESC', language, description / description.size)
 
 
-def create_temp_dir(language = 'en'):
+def create_temp_dir(language='en'):
     """
     Create a temporary directory to keep temporary files.
     :param language:
@@ -282,12 +280,13 @@ def create_temp_dir(language = 'en'):
 def train():
     entities = get_entities_with_type()
     for thing in entities:
-        # TODO: give article title to get id
         p = np.zeros(config.WORD_VEC_SIZE)
-        views = get_view(get_item_id(thing))
+        # TODO: give article title to get id
+        views = get_view(get_item_id(thing['title']))
         for view in views:
             p += view
         p /= len(views)
+        # TODO: train network
 
 
 def get_views(name):
@@ -308,6 +307,7 @@ def main():
         compute_CTXT_view(lan)
         compute_NAME_view(lan)
         compute_DESC_view(lan)
+        train()
 
 
 if __name__ == "__main__":
@@ -318,6 +318,7 @@ if __name__ == "__main__":
     parser.add_argument('--parse_fasttext',
                         help='If true it will parse fast text.')
     args = parser.parse_args()
+    init_database()
     if args.parse_wiki:
         read_pages()
     if args.parse_fasttext:

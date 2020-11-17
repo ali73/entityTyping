@@ -22,6 +22,10 @@ sqlConnection = pymysql.connect(host=config.DB_HOST, user=config.DB_USER,
 
 
 def init_database():
+    """
+    create views and fasttext tables in sql
+    :return:
+    """
     # sqlConnection.cursor().execute('create database {}'.format(config.DB_NAME))
     sqlConnection.select_db(config.DB_NAME)
     init_views()
@@ -29,6 +33,10 @@ def init_database():
 
 
 def init_views():
+    """
+    initialize views table in sql database
+    :return:
+    """
     query = 'create table if not exists views (article_id int, view_name char(4), view text, language char(3), primary key (article_id, view_name, language));'
     try:
         sqlConnection.cursor().execute(query)
@@ -38,6 +46,10 @@ def init_views():
 
 
 def init_fasttext_datbase():
+    """
+    initialize fasttext database in sql to store fasttext output vectors.
+    :return:
+    """
     # query = 'create table if not exists fasttext '
     query = 'create table if not exists fasttext ('\
             'word char(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, ' \
@@ -50,6 +62,14 @@ def init_fasttext_datbase():
         raise e
 
 def get_item_id(connection, title):
+    """
+    get wikipedia item from sql dump and
+    !!!important!!!
+        this function needs wb_items_per_site database from wikipedia dumps
+    :param connection:
+    :param title: article title.
+    :return:
+    """
     title = title.replace("'","''")
     query = "select * from wb_items_per_site where ips_site_page = '{}'".format(title)
     cursor = connection.cursor()
@@ -65,6 +85,11 @@ def get_title_id_dict(title, id):
 
 class Revision:
     def replace_id(self):
+        """
+        !!!important!!!
+            this function needs wb_items_per_site database from wikipedia dumps
+        :return:
+        """
         parsed = wtp.parse(self.text)
         # remove templates from text
         for template in parsed.templates:
@@ -269,6 +294,20 @@ def insert_fasttext_vector(word, vector):
         sqlConnection.commit()
         query = query.format(word, vector)
         sqlConnection.cursor().execute(query)
+    except Exception as e:
+        print('word', word)
+        print(vector)
+        raise e
+
+def get_fasttext_vector(word):
+    query = 'select vector from fasttext where word = \'{0}\';'
+    try:
+        word = word.replace("'", "''")
+        word = word.replace("\\", "\\\\")
+        sqlConnection.commit()
+        query = query.format(word)
+        vector = sqlConnection.cursor().execute(query)
+        return vector
     except Exception as e:
         print('word', word)
         print(vector)
