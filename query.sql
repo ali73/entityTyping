@@ -1,16 +1,16 @@
-INSERT {
-    ?p rdf:DBPediaInstance ?o
+INSERT { GRAPH <http://farsbase.net> {
+        ?p rdf:DBPediaInstance ?o
 }
-using  <http://fk.iust.ac.ir>
+}
+using  <http://farsbase.net>
 using named <http://dbpedia.org>
 where {
               ?p rdf:instanceOf <http://fkg.iust.ac.ir/ontology/Thing>.
               ?p owl:sameAs ?d.
               filter(strstarts(str(?d), "http://dbpedia.org/")).
-        {GRAPH <http://entity.typing/dbpedia>
+        {GRAPH <http://dbpedia.org>
            {
                ?d rdf:type ?o
            }
         }
-
 }
